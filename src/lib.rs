@@ -1,4 +1,7 @@
-use std::fmt;
+use std::{fmt, fs};
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -74,8 +77,55 @@ pub struct Key {
   pub suffix: String,
 }
 
+pub async fn cache_genre(id: u32, count: u32, access_token: &str) -> anyhow::Result<Page<Track>> {
+  let path = format!("genre-{}-{}.json", id, count);
+  let path = Path::new(&path);
+  let body = if path.exists() {
+    fs::read_to_string(path)?
+  } else {
+    let body = get_genre(id, count, access_token).await?;
+    cache_body(body, path)?
+  };
+  let page: Page<Track> = serde_json::from_str(&body)?;
+  Ok(page)
+}
+
+fn cache_body(body: String, path: &Path) -> anyhow::Result<String> {
+  let mut file = File::create(path)?;
+  file.write_all(body.as_bytes())?;
+  Ok(body)
+}
+
+pub async fn get_genre(id: u32, count: u32, access_token: &str) -> anyhow::Result<String> {
+  let url = format!("https://api.beatport.com/v4/catalog/genres/{}/top/100/?per_page={}&hype=false", id, count);
+  get_body(&url, access_token).await
+}
+
+pub async fn cache_chart(id: u32, count: u32, access_token: &str) -> anyhow::Result<Page<Track>> {
+  let path = format!("chart-{}-{}.json", id, count);
+  let path = Path::new(&path);
+  let body = if path.exists() {
+    fs::read_to_string(path)?
+  } else {
+    let body = get_chart(id, count, access_token).await?;
+    cache_body(body, path)?
+  };
+  let page: Page<Track> = serde_json::from_str(&body)?;
+  Ok(page)
+}
+
 pub async fn get_chart(id: u32, count: u32, access_token: &str) -> anyhow::Result<String> {
   let url = format!("https://api.beatport.com/v4/catalog/charts/{}/tracks/?per_page={}", id, count);
+  get_body(&url, access_token).await
+}
+
+pub fn parse_chart(path_buf: PathBuf) -> anyhow::Result<Page<Track>> {
+  let file = File::open(path_buf)?;
+  let result: Page<Track> = serde_json::from_reader(file)?;
+  Ok(result)
+}
+
+async fn get_body(url: &str, access_token: &str) -> anyhow::Result<String> {
   let client = reqwest::Client::new();
   let response = client.get(url)
     .bearer_auth(access_token)
@@ -85,3 +135,4 @@ pub async fn get_chart(id: u32, count: u32, access_token: &str) -> anyhow::Resul
   let body = response.text().await?;
   Ok(body)
 }
+
