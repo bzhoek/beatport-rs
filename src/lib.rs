@@ -36,7 +36,7 @@ impl Track {
       .collect::<Vec<&str>>()
       .join(", ")
   }
-  
+
   pub fn title(&self) -> String {
     if self.version.is_empty() {
       self.title.clone()
@@ -72,4 +72,16 @@ pub struct Key {
   pub camelot: u8,
   #[serde(rename = "camelot_letter")]
   pub suffix: String,
+}
+
+pub async fn get_chart(id: u32, count: u32, access_token: &str) -> anyhow::Result<String> {
+  let url = format!("https://api.beatport.com/v4/catalog/charts/{}/tracks/?per_page={}", id, count);
+  let client = reqwest::Client::new();
+  let response = client.get(url)
+    .bearer_auth(access_token)
+    .send()
+    .await?;
+
+  let body = response.text().await?;
+  Ok(body)
 }
