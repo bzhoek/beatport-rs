@@ -15,7 +15,7 @@ pub struct Page<T> {
 #[derive(Deserialize, Debug)]
 pub struct Track {
   pub id: u32,
-  pub isrc: String,
+  pub isrc: Option<String>,
   pub artists: Vec<Artist>,
   pub bpm: u16,
   pub genre: Genre,
